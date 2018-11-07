@@ -169,9 +169,9 @@ int main(int argc, char * argv[]) {
 
   for(i = 0; i < TRIALS; i++){  
     initializeNetwork(network, i);  
-    int rounds_LEACH = runSimulation(network, LEACH_SIMULATION);  
-    int rounds_SEP = runSimulation(network, SEP_SIMULATION);  
-    int rounds_TEEN = runSimulation(network, TEEN_SIMULATION);  
+    int rounds_LEACH = runSimulation(network, LEACH_SIMULATION, i);  
+    int rounds_SEP = runSimulation(network, SEP_SIMULATION, i);  
+    int rounds_TEEN = runSimulation(network, TEEN_SIMULATION, i);  
 
     total_rounds_LEACH += rounds_LEACH;
     total_rounds_SEP += rounds_SEP;
@@ -269,7 +269,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
     filename = "teen_simulation_";
   }
 
-  filename += std::to_string(round) + ".csv"
+  filename = "output/" + filename + std::to_string(round) + ".csv";
 
   ofstream logFile;
   logFile.open(filename);
