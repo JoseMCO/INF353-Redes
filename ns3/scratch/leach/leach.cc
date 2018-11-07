@@ -129,7 +129,7 @@ struct sensor * loadConfiguration(char * filename);
 // including starting battery power, size of network,   
 // and number of nodes  
 
-int runSimulation(const struct sensor network[], int type);  
+int runSimulation(const struct sensor network[], int type, int trial);  
 
 int runLeachSimulation(const struct sensor network[]);  
 // takes an initialized sensor network and simulates   
@@ -194,7 +194,7 @@ int main(int argc, char * argv[]) {
 } // end main function  
 
 
-int runSimulation(const struct sensor network[], int type){  
+int runSimulation(const struct sensor network[], int type, int trial){  
   // Preconditions:   the network variable contains an initiailized    
   //          sensor network and all global variables have been   
   //          set using the loadConfiguration function. The simulation   
@@ -258,13 +258,15 @@ int runSimulation(const struct sensor network[], int type){
   }  
 
 
-  std::string filename = "leach_simulation.csv";
+  std::string filename = "leach_simulation_";
   if (type == SAP_SIMULATION) {
-    filename = "sap_simulation.csv";
+    filename = "sap_simulation_";
   }
   else if (type == TEEN_SIMULATION) {
-    filename = "teen_simulation.csv";
+    filename = "teen_simulation_";
   }
+
+  filename += std::to_string(round) + ".csv"
 
   ofstream logFile;
   logFile.open(filename);
