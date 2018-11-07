@@ -522,7 +522,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
 
 
     avgEnergy = averageEnergy(network_struct);
-    if (round%5 == 0){
+    if (round%10 == 0){
       double mxEnergy = maxEnergy(network_struct);
       double mnEnergy = minEnergy(network_struct);
       // logFile << "round,alive,sent,avg energy,max energy,min energy\n";
