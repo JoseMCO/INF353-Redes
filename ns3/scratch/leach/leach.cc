@@ -32,8 +32,11 @@ int NETWORK_Y = 100;    // Y-size of network
                         // default is 100  
 
 double B_POWER = 0.75;  // initial battery power of sensors  
-                        // default is 0.75  
-double B_POWER_ADVANCED = 1.0; // initial battery power of advanced sensors  
+                        // default is 0.75 
+
+double ALPHA_RATIO = 3.0; //
+
+double B_POWER_ADVANCED = B_POWER * ALPHA_RATIO; // initial battery power of advanced sensors  
 
                 // the percentage of the nodes in the   
                 // network that would ideally be cluster   
@@ -81,9 +84,9 @@ int TRIALS = 1;
 
 int LEACH_SIMULATION = 1;
 int TEEN_SIMULATION = 2;
-int SAP_SIMULATION = 3;
+int SEP_SIMULATION = 3;
 
-double ADVANCED_RATIO = 0.25;
+double ADVANCED_RATIO = 0.2; // M
 double TEEN_THRESHOLD = 0.65;
 double TEEN_SOFT_THRESHOLD = 0.75;
 
@@ -152,7 +155,7 @@ int main(int argc, char * argv[]) {
   int i = 0;  
   //int j = 0;  
   double total_rounds_LEACH = 0.0;  
-  double total_rounds_SAP = 0.0;  
+  double total_rounds_SEP = 0.0;  
   double total_rounds_TEEN = 0.0;  
   //double average_comparison = 0.0;  
   char* filename=new char[10]; 
@@ -167,26 +170,26 @@ int main(int argc, char * argv[]) {
   for(i = 0; i < TRIALS; i++){  
     initializeNetwork(network, i);  
     int rounds_LEACH = runSimulation(network, LEACH_SIMULATION);  
-    int rounds_SAP = runSimulation(network, SAP_SIMULATION);  
+    int rounds_SEP = runSimulation(network, SEP_SIMULATION);  
     int rounds_TEEN = runSimulation(network, TEEN_SIMULATION);  
 
     total_rounds_LEACH += rounds_LEACH;
-    total_rounds_SAP += rounds_SAP;
+    total_rounds_SEP += rounds_SEP;
     total_rounds_TEEN += rounds_TEEN;
 
     printf("Trial no %d\n", i);  
     printf("The LEACH simulation was able to remain viable for %d rounds\n", rounds_LEACH);  
-    printf("The SAP simulation was able to remain viable for %d rounds\n", rounds_SAP);  
+    printf("The SEP simulation was able to remain viable for %d rounds\n", rounds_SEP);  
     printf("The TEEN simulation was able to remain viable for %d rounds\n", rounds_TEEN);
   }  
 
   total_rounds_LEACH /= TRIALS;
-  total_rounds_SAP /= TRIALS;
+  total_rounds_SEP /= TRIALS;
   total_rounds_TEEN /= TRIALS;
 
   printf("AVG results\n");  
   printf("The LEACH simulation was able to remain viable for %.2f rounds\n", total_rounds_LEACH);  
-  printf("The SAP simulation was able to remain viable for %.2f rounds\n", total_rounds_SAP);  
+  printf("The SEP simulation was able to remain viable for %.2f rounds\n", total_rounds_SEP);  
   printf("The TEEN simulation was able to remain viable for %.2f rounds\n", total_rounds_TEEN);
 
   return 0;  
@@ -259,8 +262,8 @@ int runSimulation(const struct sensor network[], int type){
 
 
   std::string filename = "leach_simulation.csv";
-  if (type == SAP_SIMULATION) {
-    filename = "sap_simulation.csv";
+  if (type == SEP_SIMULATION) {
+    filename = "sep_simulation.csv";
   }
   else if (type == TEEN_SIMULATION) {
     filename = "teen_simulation.csv";
@@ -282,8 +285,15 @@ int runSimulation(const struct sensor network[], int type){
         // which are round dependent
       //double check = (CLUSTER_PERCENT*float(round % 20));
       //cout << "check: " << check << endl;  
-    double threshold = CLUSTER_PERCENT/(1-(CLUSTER_PERCENT*(round % 20)));
-    cluster_head_count = 0;  
+    double threshold = CLUSTER_PERCENT/(1-(CLUSTER_PERCENT*(round % int(1.0/CLUSTER_PERCENT) )));
+    cluster_head_count = 0;
+
+    double P_nrm = CLUSTER_PERCENT/(1+ ALPHA_RATIO * ADVANCED_RATIO);
+    double P_adv = P_nrm * (1 + ALPHA_RATIO);
+
+    double threshold_nrm = P_nrm/(1-(P_nrm*(round % int(1.0/P_nrm))));
+    double threshold_adv = P_adv/(1-(P_adv*(round % int(1.0/P_adv))));
+
       //cout << "round: " << round << " threshold: "  << threshold << endl;  
         // advertisement phase  
         // we determine which nodes will be cluster heads  
@@ -293,24 +303,62 @@ int runSimulation(const struct sensor network[], int type){
         if(network_struct[i].head != DEAD_NODE){  
           random_number = .00001*(rand() % 100000);          
           //cout << "random_number " << random_number << endl;
-          if(random_number <= threshold){  
-            // the random number selected is less   
-            // than the threshold so the node becomes   
-            // a cluster head for the round  
-            network_struct[i].head_count++;  
-            // update the round variable   
-            // so we know that this sensor was   
-            // last a cluster head at round i  
-            network_struct[i].round = j;  
-            network_struct[i].head = -1;  
-            // store the index of the node in the   
-            // cluster_heads array  
-            // increment the cluster_head_count  
-            cluster_head_count++; 
+          if (type == SEP_SIMULATION){
+            if (network_struct[i].advanced) {
+              if(random_number <= threshold_adv) {  
+                // the random number selected is less   
+                // than the threshold so the node becomes   
+                // a cluster head for the round  
+                network_struct[i].head_count++;  
+                // update the round variable   
+                // so we know that this sensor was   
+                // last a cluster head at round i  
+                network_struct[i].round = j;  
+                network_struct[i].head = -1;  
+                // store the index of the node in the   
+                // cluster_heads array  
+                // increment the cluster_head_count  
+                cluster_head_count++;
+              }
+              else{
+                if(random_number <= threshold_nrm){  
+                  // the random number selected is less   
+                  // than the threshold so the node becomes   
+                  // a cluster head for the round  
+                  network_struct[i].head_count++;  
+                  // update the round variable   
+                  // so we know that this sensor was   
+                  // last a cluster head at round i  
+                  network_struct[i].round = j;  
+                  network_struct[i].head = -1;  
+                  // store the index of the node in the   
+                  // cluster_heads array  
+                  // increment the cluster_head_count  
+                  cluster_head_count++;
+                }
+              }
+            }
+          }
+          else{
+            if(random_number <= threshold){  
+              // the random number selected is less   
+              // than the threshold so the node becomes   
+              // a cluster head for the round  
+              network_struct[i].head_count++;  
+              // update the round variable   
+              // so we know that this sensor was   
+              // last a cluster head at round i  
+              network_struct[i].round = j;  
+              network_struct[i].head = -1;  
+              // store the index of the node in the   
+              // cluster_heads array  
+              // increment the cluster_head_count  
+              cluster_head_count++; 
+            }
           }  
         }  
       }  
-    }  
+    } 
 
     percent_found += (double)cluster_head_count/(double)NUM_NODES;
 
@@ -820,7 +868,7 @@ void initializeNetwork(struct sensor network[], int networkId) {
     network[i].advanced = FALSE;   
 
     float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-    if (r > (1.0 - ADVANCED_RATIO)){
+    if (r < ADVANCED_RATIO){
       network[i].bCurrent = B_POWER_ADVANCED;  
       network[i].bPower = B_POWER_ADVANCED;  
       network[i].advanced = TRUE;   
