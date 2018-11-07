@@ -1,0 +1,11 @@
+version: '3.5'
+services:
+  ns3:
+    build: .
+    command: /bin/bash
+    working_dir: /usr/ns3
+    volumes:
+      - ./ns3:/usr/ns3
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    environment:
+      - DISPLAY=${HOSTNAME}:0
