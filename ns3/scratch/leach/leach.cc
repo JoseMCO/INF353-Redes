@@ -282,7 +282,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
 
   ofstream logFile;
   logFile.open(filename);
-  logFile << "Round,nodes alive,sent,avg energy,max energy,min energy\n";
+  logFile << "\"Round\",\"nodes alive\",\"sent\",\"avg energy\",\"max energy\",\"min energy\"\n";
 
 
   //printf("\nRunning the LEACH Transmission Simulation \n");  
@@ -896,8 +896,8 @@ void initializeNetwork(struct sensor network[], int networkId) {
 
 }           // end initializeNetwork function  
 
-int aliveCount(struct sensor network[]) {  
-  int count = 0;
+int aliveCount(struct sensor network[]) {  // ASDVFFFFFFFFFFFFFFFSDFASDFASD
+  int count = -1;
 
   for(int i = 0; i <= NUM_NODES; i++) {  
     if(network[i].head != DEAD_NODE){
@@ -921,8 +921,10 @@ float averageEnergy(struct sensor network[]) {
   int i = 0;  
 
   for(i = 0; i <= NUM_NODES; i++) {  
+    if (network[i].head != DEAD_NODE){
+      current_power += network[i].bCurrent;  
+    }
     starting_power += network[i].bPower;  
-    current_power += network[i].bCurrent;  
   }  
 
   return current_power/starting_power;  
@@ -933,8 +935,7 @@ float maxEnergy(struct sensor network[]) {
 
   for(int i = 0; i <= NUM_NODES; i++) {  
     double pwr = network[i].bCurrent/network[i].bPower;
-    if (pwr > max)
-    {
+    if (pwr > max && pwr <= 1){
       max = pwr;
     }
   }  
@@ -950,8 +951,7 @@ float minEnergy(struct sensor network[]) {
       return 0.0;
     }
     double pwr = network[i].bCurrent/network[i].bPower;
-    if (pwr < min && pwr >= 0)
-    {
+    if (pwr < min && pwr >= 0){
       min = pwr;
     }
   }  
