@@ -22,13 +22,13 @@
 
 using namespace std;
 
-int NUM_NODES = 50;     // number of nodes in the network  
+int NUM_NODES = 100;     // number of nodes in the network  
                         // default is 50  
 
-int NETWORK_X = 100;    // X-size of network  
+int NETWORK_X = 200;    // X-size of network  
                         // default is 100  
 
-int NETWORK_Y = 100;    // Y-size of network  
+int NETWORK_Y = 200;    // Y-size of network  
                         // default is 100  
 
 double B_POWER = 0.75;  // initial battery power of sensors  
@@ -73,14 +73,14 @@ int SCHEDULE_MESSAGE = 16;
 
 void writefile(vector<int> vec);
 
-int BASE_STATION_X_DEFAULT = 50;
+int BASE_STATION_X_DEFAULT = NETWORK_X/2;
 
-int BASE_STATION_Y_DEFAULT = 50;  
+int BASE_STATION_Y_DEFAULT = NETWORK_Y/2;  
 
 int DEAD_NODE = -2;
 int MESSAGE_LENGTH = 8;
 
-int TRIALS = 1;
+int TRIALS = 5;
 
 int LEACH_SIMULATION = 1;
 int TEEN_SIMULATION = 2;
@@ -165,7 +165,7 @@ int main(int argc, char * argv[]) {
 
   cout << "proper file" << endl;   
 
-  network = (struct sensor *) malloc(60 * sizeof(struct sensor));
+  network = (struct sensor *) malloc(200 * sizeof(struct sensor));
 
   for(i = 0; i < TRIALS; i++){  
     initializeNetwork(network, i);  
@@ -243,7 +243,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
   vector<double>profile;
 
   //old :: network_struct = (struct sensor *) malloc(NUM_NODES * sizeof(struct sensor)); 
-  network_struct = (struct sensor *) malloc(60 * sizeof(struct sensor));  
+  network_struct = (struct sensor *) malloc(200 * sizeof(struct sensor));  
   //network_struct = new struct sensor[NUM_NODES];  
   // copy the contents of the passed network to a temporary   
   // network so the same network can be passed to different   
@@ -269,7 +269,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
     filename = "teen_simulation_";
   }
 
-  filename = "output/" + filename + std::to_string(round) + ".csv";
+  filename = "output/" + filename + std::to_string(trial) + ".csv";
 
   ofstream logFile;
   logFile.open(filename);
@@ -583,7 +583,7 @@ int runLeachSimulation(const struct sensor network[]){
   vector<double>profile;
   vector<double> dir;
   //old :: network_LEACH = (struct sensor *) malloc(NUM_NODES * sizeof(struct sensor)); 
-  network_LEACH = (struct sensor *) malloc(60 * sizeof(struct sensor));  
+  network_LEACH = (struct sensor *) malloc(200 * sizeof(struct sensor));  
   //network_LEACH = new struct sensor[NUM_NODES];  
   // copy the contents of the passed network to a temporary   
   // network so the same network can be passed to different   
