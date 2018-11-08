@@ -22,7 +22,7 @@
 
 using namespace std;
 
-int NUM_NODES = 50;     // number of nodes in the network  
+int NUM_NODES = 70;     // number of nodes in the network  
                         // default is 50  
 
 int NETWORK_X = 100;    // X-size of network  
@@ -80,7 +80,7 @@ int BASE_STATION_Y_DEFAULT = 50;
 int DEAD_NODE = -2;
 int MESSAGE_LENGTH = 8;
 
-int TRIALS = 1;
+int TRIALS = 2;
 
 int LEACH_SIMULATION = 1;
 int TEEN_SIMULATION = 2;
@@ -89,6 +89,8 @@ int SEP_SIMULATION = 3;
 double ADVANCED_RATIO = 0.2; // M
 double TEEN_THRESHOLD = 0.65;
 double TEEN_SOFT_THRESHOLD = 0.75;
+
+int LOG_STEPS = 10;
 
 struct sensor {  
   short xLoc;        // X-location of sensor  
@@ -119,6 +121,8 @@ double computeEnergyReceive(int messageLength);
 void initializeNetwork(struct sensor network[], int networkId);  
 // initializes the network; randomly places nodes within   
 // the grid and sets battery power to default value  
+
+int aliveCount(struct sensor network[]);
 
 float averageEnergy(struct sensor network[]);  
 float maxEnergy(struct sensor network[]);  
@@ -165,7 +169,7 @@ int main(int argc, char * argv[]) {
 
   cout << "proper file" << endl;   
 
-  network = (struct sensor *) malloc(60 * sizeof(struct sensor));
+  network = (struct sensor *) malloc(80 * sizeof(struct sensor));
 
   for(i = 0; i < TRIALS; i++){  
     initializeNetwork(network, i);  
@@ -243,12 +247,12 @@ int runSimulation(const struct sensor network[], int type, int trial){
   vector<double>profile;
 
   //old :: network_struct = (struct sensor *) malloc(NUM_NODES * sizeof(struct sensor)); 
-  network_struct = (struct sensor *) malloc(60 * sizeof(struct sensor));  
+  network_struct = (struct sensor *) malloc(80 * sizeof(struct sensor));  
   //network_struct = new struct sensor[NUM_NODES];  
   // copy the contents of the passed network to a temporary   
   // network so the same network can be passed to different   
   // protocol simulations  
-
+  
   for(i = 0; i  < NUM_NODES; i++){  
     network_struct[i].xLoc = network[i].xLoc;  
     network_struct[i].yLoc = network[i].yLoc;   
@@ -522,11 +526,17 @@ int runSimulation(const struct sensor network[], int type, int trial){
 
 
     avgEnergy = averageEnergy(network_struct);
-    if (round%10 == 0){
+    if (round%LOG_STEPS == 0){
+      int aliveC = aliveCount(network_struct);
       double mxEnergy = maxEnergy(network_struct);
       double mnEnergy = minEnergy(network_struct);
       // logFile << "round,alive,sent,avg energy,max energy,min energy\n";
-      logFile << (std::to_string(round)+",0,0,"+std::to_string(avgEnergy)+","+std::to_string(mxEnergy)+","+std::to_string(mnEnergy)+"\n");
+      logFile << std::to_string(round)+",";
+      logFile << std::to_string(aliveC)+",";
+      logFile << std::to_string(0)+",";
+      logFile << std::to_string(avgEnergy)+",";
+      logFile << std::to_string(mxEnergy)+",";
+      logFile << std::to_string(mnEnergy)+"\n";
     }
 
     round += 1;  
@@ -583,7 +593,7 @@ int runLeachSimulation(const struct sensor network[]){
   vector<double>profile;
   vector<double> dir;
   //old :: network_LEACH = (struct sensor *) malloc(NUM_NODES * sizeof(struct sensor)); 
-  network_LEACH = (struct sensor *) malloc(60 * sizeof(struct sensor));  
+  network_LEACH = (struct sensor *) malloc(80 * sizeof(struct sensor));  
   //network_LEACH = new struct sensor[NUM_NODES];  
   // copy the contents of the passed network to a temporary   
   // network so the same network can be passed to different   
@@ -878,6 +888,18 @@ void initializeNetwork(struct sensor network[], int networkId) {
   }  
 
 }           // end initializeNetwork function  
+
+int aliveCount(struct sensor network[]) {  
+  int count = 0;
+
+  for(int i = 0; i <= NUM_NODES; i++) {  
+    if(network[i].head != DEAD_NODE){
+      count++;
+    }
+  }  
+
+  return count;
+}
 
 float averageEnergy(struct sensor network[]) {  
 // Preconditions:   network is an initialized sensor network  

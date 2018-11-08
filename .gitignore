@@ -304,4 +304,4 @@ waf3-*-*/
 
 # End of https://www.gitignore.io/api/c,waf,osx,c++,cmake,linux,python,sublimetext
 
-output/*
+ns3/output/*
