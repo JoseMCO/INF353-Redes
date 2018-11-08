@@ -282,7 +282,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
 
   ofstream logFile;
   logFile.open(filename);
-  logFile << "Round,nodes alive,sent,avg energy,max energy,min energy\n";
+  logFile << "\"Round\",\"nodes alive\",\"sent\",\"avg energy\",\"max energy\",\"min energy\"\n";
 
 
   //printf("\nRunning the LEACH Transmission Simulation \n");  
