@@ -35,6 +35,11 @@ for x in ["leach", "sep", "teen"]:
 	columnas_min_energy.drop(columnas_min_energy.tail(resta).index , inplace=True)
 	columnas_avg_energy.drop(columnas_avg_energy.tail(resta).index , inplace=True)
 
+	columnas_nodes_alive.drop(columnas_nodes_alive.head(3).index , inplace=True)
+	columnas_max_energy.drop(columnas_max_energy.head(3).index , inplace=True)
+	columnas_min_energy.drop(columnas_min_energy.head(3).index , inplace=True)
+	columnas_avg_energy.drop(columnas_avg_energy.head(3).index , inplace=True)
+
 	resumen['avg_nodes_alive'] = columnas_nodes_alive.mean(axis=1)
 	resumen['avg_max_energy'] = columnas_max_energy.mean(axis=1)
 	resumen['avg_min_energy'] = columnas_min_energy.mean(axis=1)
@@ -69,6 +74,7 @@ for x in ["leach", "sep", "teen"]:
 	resumen.plot(kind='line', x='Round', y='avg_avg_energy', ax=ax)
 
 	plt.legend(('Max Energy', 'Min Energy', 'AVG Energy'), loc='upper right')
+	plt.title('Protocolo ' + x.upper())
 	plt.savefig( x + "_simulation.png")
 	plt.gcf().clear()
 
@@ -85,6 +91,7 @@ resumen_leach.plot(kind='line', x='Round', y='avg_avg_energy', ax=ax)
 resumen_sep.plot(kind='line', x='Round', y='avg_avg_energy', ax=ax)
 resumen_teen.plot(kind='line', x='Round', y='avg_avg_energy', ax=ax)
 plt.legend(('LEACH', 'SEP', 'TEEN'), loc='upper right')
+plt.title('Energia Promedio')
 plt.savefig( "avg_energy_all_models.png")
 plt.gcf().clear()
 
@@ -94,6 +101,7 @@ resumen_leach.plot(kind='line', x='Round', y='avg_min_energy', ax=ax)
 resumen_sep.plot(kind='line', x='Round', y='avg_min_energy', ax=ax)
 resumen_teen.plot(kind='line', x='Round', y='avg_min_energy', ax=ax)
 plt.legend(('LEACH', 'SEP', 'TEEN'), loc='upper right')
+plt.title('Energia Minima')
 plt.savefig( "min_energy_all_models.png")
 plt.gcf().clear()
 
@@ -103,6 +111,7 @@ resumen_leach.plot(kind='line', x='Round', y='avg_max_energy', ax=ax)
 resumen_sep.plot(kind='line', x='Round', y='avg_max_energy', ax=ax)
 resumen_teen.plot(kind='line', x='Round', y='avg_max_energy', ax=ax)
 plt.legend(('LEACH', 'SEP', 'TEEN'), loc='upper right')
+plt.title('Energia Maxima')
 plt.savefig( "max_energy_all_models.png")
 plt.gcf().clear()
 
@@ -112,6 +121,31 @@ resumen_leach.plot(kind='line', x='Round', y='avg_nodes_alive', ax=ax)
 resumen_sep.plot(kind='line', x='Round', y='avg_nodes_alive', ax=ax)
 resumen_teen.plot(kind='line', x='Round', y='avg_nodes_alive', ax=ax)
 plt.legend(('LEACH', 'SEP', 'TEEN'), loc='upper right')
+plt.title('Numero de nodos vivos')
 plt.savefig( "avg_nodes_alive_all_models.png")
 plt.gcf().clear()
 
+
+plt.rcdefaults()
+fig, ax = plt.subplots()
+
+ax.barh([1,2,3], [1100, 880, 5340], align='center', color='green')
+ax.invert_yaxis()  # labels read top-to-bottom
+ax.set_yticks([1,2,3])
+ax.set_yticklabels(["LEACH", "SEP", "TEEN"])
+ax.set_xlabel('Rondas')
+ax.set_title('Muerte Primer Nodo')
+plt.savefig("dead_first_node.png")
+plt.gcf().clear()
+
+plt.rcdefaults()
+fig, ax = plt.subplots()
+
+ax.barh([1,2,3], [67390, 61710, 114610], align='center', color='green')
+ax.invert_yaxis()  # labels read top-to-bottom
+ax.set_yticks([1,2,3])
+ax.set_yticklabels(["LEACH", "SEP", "TEEN"])
+ax.set_xlabel('Rondas')
+ax.set_title('Muerte Nodo 50')
+plt.savefig("dead_fifty_node.png")
+plt.gcf().clear()
