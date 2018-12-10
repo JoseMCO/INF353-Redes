@@ -37,15 +37,13 @@ int NETWORK_Y = 200;    // Y-size of network
 double B_POWER = 0.75;  // initial battery power of sensors  
                         // default is 0.75 
 
-double ALPHA_RATIO = 3.0; //
+double ALPHA_RATIO = 1.333; //
 
 double B_POWER_ADVANCED = B_POWER * ALPHA_RATIO; // initial battery power of advanced sensors  
-
-                // the percentage of the nodes in the   
+  
+double CLUSTER_PERCENT = 0.05;  // the percentage of the nodes in the   
                 // network that would ideally be cluster   
-                // heads during any one round of the   
-                // LEACH simulation, default is 0.05  
-double CLUSTER_PERCENT = 0.05; //if we change this make changes in threshold formulae and wherever we have put "20"  
+                // heads during any one round
 
                 // the total rounds that the simulation  
                 // should run for - the network lifetime  
@@ -90,8 +88,8 @@ int TEEN_SIMULATION = 2;
 int SEP_SIMULATION = 3;
 
 double ADVANCED_RATIO = 0.2; // M
-double TEEN_THRESHOLD = 0.65;
-double TEEN_SOFT_THRESHOLD = 0.75;
+double TEEN_THRESHOLD = 0.8;
+double TEEN_SOFT_THRESHOLD = 0.02;
 
 int LOG_STEPS = 20;
 
@@ -108,6 +106,7 @@ struct sensor {
   int cluster_members;   // stores the total number of nodes in the cluster, applicable only for cluster head nodes  
   int head_count;    // this contains the count of the number of times a sensor has been the head of a cluster, can be removed for optimization later  
   int advanced;
+  double temperature;
 };  
 
 struct sensor BASE_STATION;  
@@ -140,14 +139,6 @@ struct sensor * loadConfiguration(char * filename);
 // and number of nodes  
 
 int runSimulation(const struct sensor network[], int type, int trial);  
-
-int runLeachSimulation(const struct sensor network[]);  
-// takes an initialized sensor network and simulates   
-// the LEACH protocol on that network  
-// The network is unchanged so that the same network   
-// can be passed to other simulator functions  
-// The function returns the number of rounds for which the   
-// average power of the network remained above the threshold.   
 
 int sensorTransmissionChoice(const struct sensor a);  
 // using the NPP, this function determines whether sensor a  
@@ -205,16 +196,7 @@ int main(int argc, char * argv[]) {
 } // end main function  
 
 
-int runSimulation(const struct sensor network[], int type, int trial){  
-  // Preconditions:   the network variable contains an initiailized    
-  //          sensor network and all global variables have been   
-  //          set using the loadConfiguration function. The simulation   
-  //          runs a number of times equal to the TOTAL_ROUNDS variable.  
-  // Postconditions:      the LEACH protocol simulation has been   
-  //              run on the supplied network although the instance   
-  //          of that variable within main memory has NOT been   
-  //          modified. Output of statistics is currently to the   
-  //          screen.  
+int runSimulation(const struct sensor network[], int type, int trial){ 
 
   struct sensor * network_struct;      // wireless sensor network to run sim on  
 
@@ -266,7 +248,9 @@ int runSimulation(const struct sensor network[], int type, int trial){
     network_struct[i].bCurrent = network[i].bCurrent;   
     network_struct[i].bPower = network[i].bPower;   
     network_struct[i].pAverage = network[i].pAverage;   
-    network_struct[i].advanced = network[i].advanced;   
+    network_struct[i].advanced = network[i].advanced;
+    network_struct[i].temperature = -1;
+
   }  
 
 
@@ -471,7 +455,14 @@ int runSimulation(const struct sensor network[], int type, int trial){
         if (r < TEEN_THRESHOLD){
           does_transmit = 0;
         }
+        else{
+          if(network_struct[i].temperature != -1 and abs(network_struct[i].temperature - r) < TEEN_SOFT_THRESHOLD){
+            does_transmit = 0;
+          }
+        }
+        network_struct[i].temperature = r;
       }
+
 
       if(network_struct[i].head != -1 && network_struct[i].head != DEAD_NODE && does_transmit){  
         distance_X_new = network_struct[i].xLoc - network_struct[network_struct[i].head].xLoc;  
@@ -519,285 +510,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
   logFile.close();
   
   return round;  
-} // end runLeachSimulation function 
-
-
-int runLeachSimulation(const struct sensor network[]){  
-  // Preconditions:   the network variable contains an initiailized    
-  //          sensor network and all global variables have been   
-  //          set using the loadConfiguration function. The simulation   
-  //          runs a number of times equal to the TOTAL_ROUNDS variable.  
-  // Postconditions:      the LEACH protocol simulation has been   
-  //              run on the supplied network although the instance   
-  //          of that variable within main memory has NOT been   
-  //          modified. Output of statistics is currently to the   
-  //          screen.  
-
-  struct sensor * network_LEACH;      // wireless sensor network to run sim on  
-
-  int i = 0;              // indexing variables  
-  int j = 0;  
-  int k = 0;  
-  int closest = 0;  
-
-  int round = 0;              // current round  
-  int failed_transmit = 0;        // round where a failed transmission occurred  
-
-  int testing = 0;            // testing variable, TO BE REMOVED  
-  int bits_transmitted = 0;       // count of bits transmitted  
-  int power = FALSE;  
-  int temp_cluster_members = 0;  
-
-  double average_energy = 0.0;  
-  double distance_X_old = 0.0;  
-  double distance_Y_old = 0.0;  
-  double distance_old = 0.0;  
-  double distance_X_new = 0.0;  
-  double distance_Y_new = 0.0;  
-  double distance_new = 0.0;  
-  int recent_round = 20;  
-  double threshold = CLUSTER_PERCENT/(1-(CLUSTER_PERCENT*(round % 20)));
-  double random_number;  
-  int cluster_head_count = 0;  
-  double percent_found = 0.0; 
-  double mid_value = 0.0;
-  bool flag = 1 ;
-  vector<double>energy;
-  vector<double>profile;
-  vector<double> dir;
-  //old :: network_LEACH = (struct sensor *) malloc(NUM_NODES * sizeof(struct sensor)); 
-
-  network_LEACH = (struct sensor *) malloc(200 * sizeof(struct sensor));  
-
-  //network_LEACH = new struct sensor[NUM_NODES];  
-  // copy the contents of the passed network to a temporary   
-  // network so the same network can be passed to different   
-  // protocol simulations  
-
-
-  for(i = 0; i  < NUM_NODES; i++){  
-    network_LEACH[i].bPower = network[i].bPower;  
-    network_LEACH[i].xLoc = network[i].xLoc;  
-    network_LEACH[i].cluster_members = 0;  
-    network_LEACH[i].yLoc = network[i].yLoc;   
-    network_LEACH[i].ePeriods = network[i].ePeriods;   
-    network_LEACH[i].bCurrent = network[i].bCurrent;   
-    network_LEACH[i].bPower = network[i].bPower;   
-    network_LEACH[i].pAverage = network[i].pAverage;   
-  }  
-
-
-  //printf("\nRunning the LEACH Transmission Simulation \n");  
-  // our iterating loop runs of total rounds, this is   
-  // the expected lifetime of the network  
-
-  while(averageEnergy(network_LEACH) > .10) {
-        // here we recalculate all the variables   
-        // which are round dependent
-      //double check = (CLUSTER_PERCENT*float(round % 20));
-      //cout << "check: " << check << endl;  
-    double threshold = CLUSTER_PERCENT/(1-(CLUSTER_PERCENT*(round % 20)));
-    cluster_head_count = 0;  
-      //cout << "round: " << round << " threshold: "  << threshold << endl;  
-        // advertisement phase  
-        // we determine which nodes will be cluster heads  
-    for(i = 0; i < NUM_NODES; i++){  
-      if(network_LEACH[i].round < (j - recent_round) || (j - recent_round == 0)){  
-        //cout << "loop1 " << endl;
-        if(network_LEACH[i].head != DEAD_NODE){  
-          random_number = .00001*(rand() % 100000);          
-          //cout << "random_number " << random_number << endl;
-          if(random_number <= threshold){  
-            // the random number selected is less   
-            // than the threshold so the node becomes   
-            // a cluster head for the round  
-            network_LEACH[i].head_count++;  
-            // update the round variable   
-            // so we know that this sensor was   
-            // last a cluster head at round i  
-            network_LEACH[i].round = j;  
-            network_LEACH[i].head = -1;  
-            // store the index of the node in the   
-            // cluster_heads array  
-            // increment the cluster_head_count  
-            cluster_head_count++; 
-          }  
-        }  
-      }  
-    }  
-
-    percent_found += (double)cluster_head_count/(double)NUM_NODES;
-
-    // now the cluster heads must transmit the fact that they   
-    // are cluster heads to the network, this will be a constant   
-    // transmit energy, during this period the other nodes must   
-    // keep their receivers on - which has an energy cost, again   
-    // this is constant  
-    for(i = 0; i  < NUM_NODES; i++){  
-      if(network_LEACH[i].head == -1){  
-        network_LEACH[i].bCurrent -=   
-        computeEnergyTransmit(LEACH_AD_DISTANCE,  
-          LEACH_AD_MESSAGE);  
-      }  
-      else{  
-        network_LEACH[i].bCurrent -=   
-        computeEnergyReceive(LEACH_AD_MESSAGE);  
-      }  
-    }  
-
-
-
-    // CLUSTER SET-UP PHASE  
-        // for this phase, all non-cluster heads determine to which   
-        // cluster they will broadcast and alert the cluster head to that  
-
-
-    for(i = 0; i  < NUM_NODES; i++){  
-      closest = -1;  
-      if((network_LEACH[i].head != -1) &&   
-        network_LEACH[i].head != DEAD_NODE){  
-                            // if the node's round is not equal to the    
-                            // current round, the node is not a cluster  
-                            // head and we must find a cluster head for  
-                            // the node to transmit to  
-        for(k = 0; k < NUM_NODES; k++){  
-          if(network_LEACH[k].head == -1 && closest != -1){  
-            distance_X_old = network_LEACH[i].xLoc - network_LEACH[closest].xLoc;  
-            distance_Y_old = network_LEACH[i].yLoc - network_LEACH[closest].yLoc;  
-            distance_old = sqrt(pow(distance_X_old, 2) + pow(distance_Y_old, 2));  
-            distance_X_new = network_LEACH[i].xLoc - network_LEACH[k].xLoc;  
-            distance_Y_new = network_LEACH[i].yLoc - network_LEACH[k].yLoc;  
-            distance_new = sqrt(pow(distance_X_new, 2) + pow(distance_Y_new, 2));  
-            if(distance_new < distance_old)  
-              closest = k;  
-          }  
-          else if(network_LEACH[k].head == -1 && closest == -1){  
-            closest = k;  
-          }  
-        }  
-
-        network_LEACH[i].head = closest;  
-        network_LEACH[closest].cluster_members++;  
-      }  
-    }  
-
-    // SCHEDULE CREATION  
-        // the cluster head then creates a schedule telling the nodes   
-        // when they can transmit; the schedule is broadcast to the nodes  
-        // but no simulation of this is neccescary outside of the loss   
-        // of battery power for broadcasting the schedule, which is a constant  
-    for(i = 0; i <= NUM_NODES; i++){  
-      if(network_LEACH[i].head == -1){  
-                // if the node is going to be a cluster head, it transmits   
-                // the schedule to the other nodes  
-        network_LEACH[i].bCurrent -=   
-        computeEnergyTransmit(SCHEDULE_DISTANCE, SCHEDULE_MESSAGE);  
-      }  
-      else  
-        network_LEACH[i].bCurrent -=   
-      computeEnergyReceive(SCHEDULE_MESSAGE);  
-    }  
-
-
-
-    // DATA TRANSMISSION  
-        // non cluster heads send their data to the cluster heads who then   
-        // broadcast the data to the base station  
-    for(i = 0; i < NUM_NODES; i++){  
-      network_LEACH[i].lPeriods++;  
-      if(network_LEACH[i].head != -1 && network_LEACH[i].head != DEAD_NODE){  
-        distance_X_new = network_LEACH[i].xLoc - network_LEACH[network_LEACH[i].head].xLoc;  
-        distance_Y_new = network_LEACH[i].yLoc - network_LEACH[network_LEACH[i].head].yLoc;  
-        distance_new = sqrt((pow(distance_X_new, 2) + pow(distance_Y_new, 2)));  
-        network_LEACH[i].bCurrent -=   
-        computeEnergyTransmit(distance_new, MESSAGE_LENGTH);  
-        network_LEACH[network_LEACH[i].head].bCurrent -=  
-        computeEnergyReceive(MESSAGE_LENGTH);
-
-        if(network_LEACH[i].bCurrent < 0.0 && network_LEACH[i].head != -1){  
-          network_LEACH[i].head = DEAD_NODE;  
-        }  
-      }  
-    }  
-
-
-    for(i = 0; i <= NUM_NODES; i++){  
-      if(network_LEACH[i].head == -1){  
-        distance_X_new = network_LEACH[i].xLoc - BASE_STATION.xLoc;  
-        distance_Y_new = network_LEACH[i].yLoc - BASE_STATION.yLoc;  
-        distance_new = sqrt(pow(distance_X_new, 2) + pow(distance_Y_new, 2));  
-        double energy_enough = network_LEACH[i].bCurrent - computeEnergyTransmit(distance_new, (MESSAGE_LENGTH * (network_LEACH[i].cluster_members+1)));
-
-    //            network_LEACH[i].bCurrent -= computeEnergyTransmit(distance_new,(MESSAGE_LENGTH * (network_LEACH[i].cluster_members+1)));  
-    //            if(network_LEACH[i].bCurrent > 0.0){  
-        if(round < 2001){
-          double required_energy = computeEnergyTransmit(distance_new, MESSAGE_LENGTH);
-          network_LEACH[network_LEACH[i].head].bCurrent -= computeEnergyReceive(MESSAGE_LENGTH);
-          energy.push_back(required_energy);
-        }
-        if(energy_enough > 0.0){
-          network_LEACH[i].bCurrent -= computeEnergyTransmit(distance_new,(MESSAGE_LENGTH * (network_LEACH[i].cluster_members+1)));
-          bits_transmitted += (MESSAGE_LENGTH * (network_LEACH[i].cluster_members+1));  
-        }  
-        else{  
-          failed_transmit++;  
-          //  network_LEACH[i].head = DEAD_NODE;
-          if(flag){
-            //cout << "modified_LEACH's first node dies: " << round << endl;
-            flag = 0;
-          }
-          temp_cluster_members = network_LEACH[i].cluster_members + 1;  
-          network_LEACH[i].bCurrent += computeEnergyTransmit(distance_new, (MESSAGE_LENGTH * (network_LEACH[i].cluster_members+1)));  
-          while(power == FALSE){  
-            if((network_LEACH[i].bCurrent - computeEnergyTransmit(distance_new,(MESSAGE_LENGTH * temp_cluster_members))) > 0){  
-              bits_transmitted += (MESSAGE_LENGTH * temp_cluster_members);  
-              power = TRUE;  
-            }  
-            else {
-              temp_cluster_members--;  
-            }
-            if(temp_cluster_members == 0){
-              power == TRUE;  
-            } 
-          }  
-        }  
-      }  
-    }  
-    double max = 0.0000;
-    for(unsigned int i = 0; i < energy.size(); i++){
-      if ((energy[i]) > max) max =  energy[i];
-    }
-      //cout << max  << endl; 
-    profile.push_back(max);
-
-        // round has completed, increment the round count  
-    for(i = 0; i <= NUM_NODES; i++){  
-      network_LEACH[i].cluster_members = 0;  
-      if(network_LEACH[i].bCurrent > 0.0) network_LEACH[i].head = 0;  
-    }  
-
-    cluster_head_count = 0;  
-
-    dir.push_back(averageEnergy(network_LEACH));
-        //if(round == 1000 ) cout  << "network_pwr: " << averageEnergy(network_LEACH) << endl;
-    round += 1;  
-    j = round;
-  } 
-  
-  ofstream d_stats;
-  d_stats.open("leach_simulation.txt");
-  //d_stats << "leach_simulation" << endl;
-  for(unsigned int i = 0; i < dir.size(); i++) d_stats << dir[i] << endl;//d_stats << dir[i] << endl ;
-    //cout << dir.size() << endl;
-
-
-        //}
-  //cout << "LEACH: " << round << endl;
-  //free(network_LEACH);  
-  //printf("The average energy of the network remained above 10%% for %d tranmission periods\n", round);  
-
-  return round;  
-} // end runLeachSimulation function 
+} 
 
 
 double computeEnergyTransmit(float distance, int messageLength){  
@@ -908,7 +621,7 @@ float maxEnergy(struct sensor network[]) {
     }
   }  
 
-  return max;  
+  return (int)(max * 1000.0)/1000.0;  
 }           // end maxEnergy function 
 
 float minEnergy(struct sensor network[]) { 
@@ -924,7 +637,7 @@ float minEnergy(struct sensor network[]) {
     }
   }  
 
-  return min;  
+  return (int)(min * 1000.0)/1000.0;  
 }           // end minEnergy function  
 
 int sensorTransmissionChoice(const struct sensor a){  
