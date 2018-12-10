@@ -93,7 +93,7 @@ double ADVANCED_RATIO = 0.2; // M
 double TEEN_THRESHOLD = 0.65;
 double TEEN_SOFT_THRESHOLD = 0.75;
 
-int LOG_STEPS = 10;
+int LOG_STEPS = 20;
 
 struct sensor {  
   short xLoc;        // X-location of sensor  
@@ -247,8 +247,8 @@ int runSimulation(const struct sensor network[], int type, int trial){
   double percent_found = 0.0; 
   double mid_value = 0.0;
   bool flag = 1 ;
-  vector<double>energy;
-  vector<double>profile;
+  int msg_count = 0;
+  int ovh_count = 0;
 
   //old :: network_struct = (struct sensor *) malloc(NUM_NODES * sizeof(struct sensor)); 
   network_struct = (struct sensor *) malloc(200 * sizeof(struct sensor));  
@@ -282,7 +282,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
 
   ofstream logFile;
   logFile.open(filename);
-  logFile << "\"Round\",\"nodes alive\",\"sent\",\"avg energy\",\"max energy\",\"min energy\"\n";
+  logFile << "\"Round\",\"nodes alive\",\"sent\",\"overhead\",\"avg energy\",\"max energy\",\"min energy\"\n";
 
 
   //printf("\nRunning the LEACH Transmission Simulation \n");  
@@ -383,6 +383,8 @@ int runSimulation(const struct sensor network[], int type, int trial){
         network_struct[i].bCurrent -=   
         computeEnergyTransmit(LEACH_AD_DISTANCE,  
           LEACH_AD_MESSAGE);  
+        msg_count++;
+        ovh_count++;
       }  
       else{  
         network_struct[i].bCurrent -=   
@@ -423,6 +425,16 @@ int runSimulation(const struct sensor network[], int type, int trial){
 
         network_struct[i].head = closest;  
         network_struct[closest].cluster_members++;  
+
+        distance_X_new = network_struct[i].xLoc - network_struct[closest].xLoc;  
+        distance_Y_new = network_struct[i].yLoc - network_struct[closest].yLoc;  
+        distance_new = sqrt((pow(distance_X_new, 2) + pow(distance_Y_new, 2)));  
+
+        network_struct[i].bCurrent -= computeEnergyTransmit(distance_new, MESSAGE_LENGTH);  
+        network_struct[closest].bCurrent -= computeEnergyReceive(MESSAGE_LENGTH);
+
+        msg_count++;
+        ovh_count++;
       }  
     }  
 
@@ -437,6 +449,9 @@ int runSimulation(const struct sensor network[], int type, int trial){
                 // the schedule to the other nodes  
         network_struct[i].bCurrent -=   
         computeEnergyTransmit(SCHEDULE_DISTANCE, SCHEDULE_MESSAGE);  
+
+        msg_count++;
+        ovh_count++;
       }  
       else  
         network_struct[i].bCurrent -=   
@@ -465,63 +480,15 @@ int runSimulation(const struct sensor network[], int type, int trial){
         network_struct[i].bCurrent -= computeEnergyTransmit(distance_new, MESSAGE_LENGTH);  
         network_struct[network_struct[i].head].bCurrent -= computeEnergyReceive(MESSAGE_LENGTH);
 
+        msg_count++;
+
         if(network_struct[i].bCurrent < 0.0 && network_struct[i].head != -1){  
           network_struct[i].head = DEAD_NODE;  
         }  
       } 
     }  
 
-
-    for(i = 0; i <= NUM_NODES; i++){  
-      if(network_struct[i].head == -1){  
-        distance_X_new = network_struct[i].xLoc - BASE_STATION.xLoc;  
-        distance_Y_new = network_struct[i].yLoc - BASE_STATION.yLoc;  
-        distance_new = sqrt(pow(distance_X_new, 2) + pow(distance_Y_new, 2));  
-        double energy_enough = network_struct[i].bCurrent - computeEnergyTransmit(distance_new, (MESSAGE_LENGTH * (network_struct[i].cluster_members+1)));
-
-    //            network_struct[i].bCurrent -= computeEnergyTransmit(distance_new,(MESSAGE_LENGTH * (network_struct[i].cluster_members+1)));  
-    //            if(network_struct[i].bCurrent > 0.0){  
-        if(round < 2001){
-          double required_energy = computeEnergyTransmit(distance_new, MESSAGE_LENGTH);
-          network_struct[network_struct[i].head].bCurrent -= computeEnergyReceive(MESSAGE_LENGTH);
-          energy.push_back(required_energy);
-        }
-        if(energy_enough > 0.0){
-          network_struct[i].bCurrent -= computeEnergyTransmit(distance_new,(MESSAGE_LENGTH * (network_struct[i].cluster_members+1)));
-          bits_transmitted += (MESSAGE_LENGTH * (network_struct[i].cluster_members+1));  
-        }  
-        else{  
-          failed_transmit++;  
-          //  network_struct[i].head = DEAD_NODE;
-          if(flag){
-            //cout << "modified_LEACH's first node dies: " << round << endl;
-            flag = 0;
-          }
-          temp_cluster_members = network_struct[i].cluster_members + 1;  
-          network_struct[i].bCurrent += computeEnergyTransmit(distance_new, (MESSAGE_LENGTH * (network_struct[i].cluster_members+1)));  
-          while(power == FALSE){  
-            if((network_struct[i].bCurrent - computeEnergyTransmit(distance_new,(MESSAGE_LENGTH * temp_cluster_members))) > 0){  
-              bits_transmitted += (MESSAGE_LENGTH * temp_cluster_members);  
-              power = TRUE;  
-            }  
-            else {
-              temp_cluster_members--;  
-            }
-            if(temp_cluster_members == 0){
-              power == TRUE;  
-            } 
-          }  
-        }  
-      }  
-    }  
-    double max = 0.0000;
-    for(unsigned int i = 0; i < energy.size(); i++){
-      if ((energy[i]) > max) max =  energy[i];
-    }
-      //cout << max  << endl; 
-    profile.push_back(max);
-
-        // round has completed, increment the round count  
+    // round has completed, increment the round count  
     for(i = 0; i <= NUM_NODES; i++){  
       network_struct[i].cluster_members = 0;  
       if(network_struct[i].bCurrent > 0.0) network_struct[i].head = 0;  
@@ -535,10 +502,11 @@ int runSimulation(const struct sensor network[], int type, int trial){
       int aliveC = aliveCount(network_struct);
       double mxEnergy = maxEnergy(network_struct);
       double mnEnergy = minEnergy(network_struct);
-      // logFile << "round,alive,sent,avg energy,max energy,min energy\n";
+      // logFile << "round,alive,sent,overhead,avg energy,max energy,min energy\n";
       logFile << std::to_string(round)+",";
       logFile << std::to_string(aliveC)+",";
-      logFile << std::to_string(0)+",";
+      logFile << std::to_string(msg_count)+",";
+      logFile << std::to_string(ovh_count)+",";
       logFile << std::to_string(avgEnergy)+",";
       logFile << std::to_string(mxEnergy)+",";
       logFile << std::to_string(mnEnergy)+"\n";
