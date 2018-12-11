@@ -3,6 +3,8 @@ from os.path import isfile, join
 import sys
 import csv
 
+row_count = 7;
+
 def readcsv(filename):  
   ifile = open(filename, "rU")
   reader = csv.reader(ifile, delimiter=",", quoting=csv.QUOTE_NONNUMERIC)
@@ -29,18 +31,12 @@ def avgcsv(files):
       if len(newf) < rows:
         rows = len(newf)
       for i in range(rows-1):
-        data[i+1][1]+=newf[i+1][1]
-        data[i+1][2]+=newf[i+1][2]
-        data[i+1][3]+=newf[i+1][3]
-        data[i+1][4]+=newf[i+1][4]
-        data[i+1][5]+=newf[i+1][5]
+        for r in range(row_count-1):
+          data[i+1][r+1]+=newf[i+1][r+1]
   data = data[:rows]
   for i in range(rows-1):
-    data[i+1][1]/=(n*1.0)
-    data[i+1][2]/=(n*1.0)
-    data[i+1][3]/=(n*1.0)
-    data[i+1][4]/=(n*1.0)
-    data[i+1][5]/=(n*1.0)
+    for r in range(row_count-1):
+      data[i+1][r+1]/=(n*1.0)
   return data
 
 def writecsv(data, filename):

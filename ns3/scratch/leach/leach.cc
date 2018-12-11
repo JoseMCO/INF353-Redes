@@ -41,7 +41,9 @@ double ALPHA_RATIO = 1.333; //
 
 double B_POWER_ADVANCED = B_POWER * ALPHA_RATIO; // initial battery power of advanced sensors  
   
-double CLUSTER_PERCENT = 0.05;  // the percentage of the nodes in the   
+double CLUSTER_PERCENT = 0.05;  
+int EXPECTED_CH = NUM_NODES*0.05;  
+                // the percentage of the nodes in the   
                 // network that would ideally be cluster   
                 // heads during any one round
 
@@ -79,17 +81,26 @@ int BASE_STATION_X_DEFAULT = NETWORK_X/2;
 int BASE_STATION_Y_DEFAULT = NETWORK_Y/2;  
 
 int DEAD_NODE = -2;
+int CLUSTER_HEAD = -1;
+
 int MESSAGE_LENGTH = 8;
+int BROADCAST_MESSAGE_LENGTH = 16;
 
 int TRIALS = 5;
 
 int LEACH_SIMULATION = 1;
 int TEEN_SIMULATION = 2;
-int SEP_SIMULATION = 3;
+int MOD_SIMULATION = 3;
+int ADV_SIMULATION = 4;
+int TAM_SIMULATION = 5;
+
+int REDUCED_ENERGY = 1;
 
 double ADVANCED_RATIO = 0.2; // M
 double TEEN_THRESHOLD = 0.8;
 double TEEN_SOFT_THRESHOLD = 0.02;
+
+double MOD_THRESHOLD = 0.8;
 
 int LOG_STEPS = 20;
 
@@ -111,7 +122,7 @@ struct sensor {
 
 struct sensor BASE_STATION;  
 
-double computeEnergyTransmit(float distance, int messageLength);  
+double computeEnergyTransmit(float distance, int messageLength, int reduced);  
 // computes the energy needed to transmit the message  
 // inputs are the distance between the two nodes and  
 // the length of the message  
@@ -153,8 +164,10 @@ int main(int argc, char * argv[]) {
   int i = 0;  
   //int j = 0;  
   double total_rounds_LEACH = 0.0;  
-  double total_rounds_SEP = 0.0;  
+  double total_rounds_MOD = 0.0;  
   double total_rounds_TEEN = 0.0;  
+  double total_rounds_ADV = 0.0;  
+  double total_rounds_TAM = 0.0;  
   //double average_comparison = 0.0;  
   char* filename=new char[10]; 
 
@@ -169,27 +182,37 @@ int main(int argc, char * argv[]) {
   for(i = 0; i < TRIALS; i++){  
     initializeNetwork(network, i);  
     int rounds_LEACH = runSimulation(network, LEACH_SIMULATION, i);  
-    int rounds_SEP = runSimulation(network, SEP_SIMULATION, i);  
     int rounds_TEEN = runSimulation(network, TEEN_SIMULATION, i);  
+    int rounds_MOD = runSimulation(network, MOD_SIMULATION, i);  
+    int rounds_ADV = runSimulation(network, ADV_SIMULATION, i);   
+    int rounds_TAM = runSimulation(network, TAM_SIMULATION, i);   
 
     total_rounds_LEACH += rounds_LEACH;
-    total_rounds_SEP += rounds_SEP;
     total_rounds_TEEN += rounds_TEEN;
+    total_rounds_MOD += rounds_MOD;
+    total_rounds_ADV += rounds_ADV; 
+    total_rounds_TAM += rounds_TAM; 
 
     printf("Trial no %d\n", i);  
     printf("The LEACH simulation was able to remain viable for %d rounds\n", rounds_LEACH);  
-    printf("The SEP simulation was able to remain viable for %d rounds\n", rounds_SEP);  
     printf("The TEEN simulation was able to remain viable for %d rounds\n", rounds_TEEN);
+    printf("The MOD simulation was able to remain viable for %d rounds\n", rounds_MOD);  
+    printf("The ADV simulation was able to remain viable for %d rounds\n", rounds_ADV);   
+    printf("The TAM simulation was able to remain viable for %d rounds\n", rounds_TAM);   
   }  
 
   total_rounds_LEACH /= TRIALS;
-  total_rounds_SEP /= TRIALS;
   total_rounds_TEEN /= TRIALS;
+  total_rounds_MOD /= TRIALS;
+  total_rounds_ADV /= TRIALS; 
+  total_rounds_TAM /= TRIALS; 
 
   printf("AVG results\n");  
   printf("The LEACH simulation was able to remain viable for %.2f rounds\n", total_rounds_LEACH);  
-  printf("The SEP simulation was able to remain viable for %.2f rounds\n", total_rounds_SEP);  
   printf("The TEEN simulation was able to remain viable for %.2f rounds\n", total_rounds_TEEN);
+  printf("The MOD simulation was able to remain viable for %.2f rounds\n", total_rounds_MOD);  
+  printf("The ADV simulation was able to remain viable for %.2f rounds\n", total_rounds_ADV);   
+  printf("The TAM simulation was able to remain viable for %.2f rounds\n", total_rounds_TAM);   
 
   return 0;  
 
@@ -222,8 +245,6 @@ int runSimulation(const struct sensor network[], int type, int trial){
   double distance_X_new = 0.0;  
   double distance_Y_new = 0.0;  
   double distance_new = 0.0;  
-  int recent_round = 20;  
-  double threshold = CLUSTER_PERCENT/(1-(CLUSTER_PERCENT*(round % 20)));
   double random_number;  
   int cluster_head_count = 0;  
   double percent_found = 0.0; 
@@ -231,6 +252,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
   bool flag = 1 ;
   int msg_count = 0;
   int ovh_count = 0;
+  int los_count = 0;
 
   //old :: network_struct = (struct sensor *) malloc(NUM_NODES * sizeof(struct sensor)); 
   network_struct = (struct sensor *) malloc(200 * sizeof(struct sensor));  
@@ -250,16 +272,21 @@ int runSimulation(const struct sensor network[], int type, int trial){
     network_struct[i].pAverage = network[i].pAverage;   
     network_struct[i].advanced = network[i].advanced;
     network_struct[i].temperature = -1;
-
   }  
 
 
   std::string filename = "leach_simulation_";
-  if (type == SEP_SIMULATION) {
-    filename = "sep_simulation_";
-  }
-  else if (type == TEEN_SIMULATION) {
+  if (type == TEEN_SIMULATION) {
     filename = "teen_simulation_";
+  }
+  else if (type == MOD_SIMULATION) {
+    filename = "mod_simulation_";
+  }
+  else if (type == ADV_SIMULATION) {
+    filename = "adv_simulation_";
+  }
+  else if (type == TAM_SIMULATION) {
+    filename = "tam_simulation_";
   }
 
   filename = "output/" + filename + std::to_string(trial) + ".csv";
@@ -280,78 +307,42 @@ int runSimulation(const struct sensor network[], int type, int trial){
         // which are round dependent
       //double check = (CLUSTER_PERCENT*float(round % 20));
       //cout << "check: " << check << endl;  
-    double threshold = CLUSTER_PERCENT/(1-(CLUSTER_PERCENT*(round % int(1.0/CLUSTER_PERCENT) )));
+    double threshold = EXPECTED_CH/(1-(EXPECTED_CH*(round % int(NUM_NODES/EXPECTED_CH) )));
     cluster_head_count = 0;
-
-    double P_nrm = CLUSTER_PERCENT/(1+ ALPHA_RATIO * ADVANCED_RATIO);
-    double P_adv = P_nrm * (1 + ALPHA_RATIO);
-
-    double threshold_nrm = P_nrm/(1-(P_nrm*(round % int(1.0/P_nrm))));
-    double threshold_adv = P_adv/(1-(P_adv*(round % int(1.0/P_adv))));
-
-      //cout << "round: " << round << " threshold: "  << threshold << endl;  
-        // advertisement phase  
-        // we determine which nodes will be cluster heads  
+ 
+    // advertisement phase  
+    // we determine which nodes will be cluster heads  
     for(i = 0; i < NUM_NODES; i++){  
-      if(network_struct[i].round < (j - recent_round) || (j - recent_round == 0)){  
-        //cout << "loop1 " << endl;
-        if(network_struct[i].head != DEAD_NODE){  
-          random_number = .00001*(rand() % 100000);          
-          //cout << "random_number " << random_number << endl;
-          if (type == SEP_SIMULATION){
-            if (network_struct[i].advanced) {
-              if(random_number <= threshold_adv) {  
-                // the random number selected is less   
-                // than the threshold so the node becomes   
-                // a cluster head for the round  
-                network_struct[i].head_count++;  
-                // update the round variable   
-                // so we know that this sensor was   
-                // last a cluster head at round i  
-                network_struct[i].round = j;  
-                network_struct[i].head = -1;  
-                // store the index of the node in the   
-                // cluster_heads array  
-                // increment the cluster_head_count  
-                cluster_head_count++;
-              }
-              else{
-                if(random_number <= threshold_nrm){  
-                  // the random number selected is less   
-                  // than the threshold so the node becomes   
-                  // a cluster head for the round  
-                  network_struct[i].head_count++;  
-                  // update the round variable   
-                  // so we know that this sensor was   
-                  // last a cluster head at round i  
-                  network_struct[i].round = j;  
-                  network_struct[i].head = -1;  
-                  // store the index of the node in the   
-                  // cluster_heads array  
-                  // increment the cluster_head_count  
-                  cluster_head_count++;
-                }
-              }
-            }
-          }
-          else{
-            if(random_number <= threshold){  
-              // the random number selected is less   
-              // than the threshold so the node becomes   
-              // a cluster head for the round  
-              network_struct[i].head_count++;  
-              // update the round variable   
-              // so we know that this sensor was   
-              // last a cluster head at round i  
-              network_struct[i].round = j;  
-              network_struct[i].head = -1;  
-              // store the index of the node in the   
-              // cluster_heads array  
-              // increment the cluster_head_count  
-              cluster_head_count++; 
-            }
-          }  
-        }  
+      if (
+        (type == MOD_SIMULATION || type == TAM_SIMULATION) &&
+        (network_struct[i].head == CLUSTER_HEAD) &&
+        (network_struct[i].bCurrent/network_struct[i].bPower >= MOD_THRESHOLD)
+      ) {
+        network_struct[i].head_count++;  
+        network_struct[i].round = j;  
+        network_struct[i].head = CLUSTER_HEAD;  
+        cluster_head_count++; 
+      }
+      else if(network_struct[i].head != DEAD_NODE && network_struct[i].round < (j - (int)(1/CLUSTER_PERCENT))) {  
+        if (type == ADV_SIMULATION || type == TAM_SIMULATION) {
+          threshold += (network_struct[i].bCurrent * EXPECTED_CH)/( network_struct[i].bPower * NUM_NODES);
+        }
+        random_number = .00001*(rand() % 100000);          
+        if(random_number <= threshold){  
+          // the random number selected is less   
+          // than the threshold so the node becomes   
+          // a cluster head for the round  
+          network_struct[i].head_count++;  
+          // update the round variable   
+          // so we know that this sensor was   
+          // last a cluster head at round j 
+          network_struct[i].round = j;  
+          network_struct[i].head = CLUSTER_HEAD;  
+          // store the index of the node in the   
+          // cluster_heads array  
+          // increment the cluster_head_count  
+          cluster_head_count++; 
+        }
       }  
     } 
 
@@ -363,10 +354,10 @@ int runSimulation(const struct sensor network[], int type, int trial){
     // keep their receivers on - which has an energy cost, again   
     // this is constant  
     for(i = 0; i  < NUM_NODES; i++){  
-      if(network_struct[i].head == -1){  
+      if(network_struct[i].head == CLUSTER_HEAD){  
         network_struct[i].bCurrent -=   
         computeEnergyTransmit(LEACH_AD_DISTANCE,  
-          LEACH_AD_MESSAGE);  
+          LEACH_AD_MESSAGE, (MOD_SIMULATION==type));  
         msg_count++;
         ovh_count++;
       }  
@@ -385,14 +376,13 @@ int runSimulation(const struct sensor network[], int type, int trial){
 
     for(i = 0; i  < NUM_NODES; i++){  
       closest = -1;  
-      if((network_struct[i].head != -1) &&   
-        network_struct[i].head != DEAD_NODE){  
-                            // if the node's round is not equal to the    
-                            // current round, the node is not a cluster  
-                            // head and we must find a cluster head for  
-                            // the node to transmit to  
+      if((network_struct[i].head != -1) && network_struct[i].head != DEAD_NODE){  
+        // if the node's round is not equal to the    
+        // current round, the node is not a cluster  
+        // head and we must find a cluster head for  
+        // the node to transmit to  
         for(k = 0; k < NUM_NODES; k++){  
-          if(network_struct[k].head == -1 && closest != -1){  
+          if(network_struct[k].head == CLUSTER_HEAD && closest != -1){  
             distance_X_old = network_struct[i].xLoc - network_struct[closest].xLoc;  
             distance_Y_old = network_struct[i].yLoc - network_struct[closest].yLoc;  
             distance_old = sqrt(pow(distance_X_old, 2) + pow(distance_Y_old, 2));  
@@ -407,18 +397,24 @@ int runSimulation(const struct sensor network[], int type, int trial){
           }  
         }  
 
-        network_struct[i].head = closest;  
-        network_struct[closest].cluster_members++;  
+        if ((type == MOD_SIMULATION || type == TAM_SIMULATION) && (network_struct[i].head == closest)) {
+          network_struct[closest].cluster_members++;  
+        }
+        else {
+          network_struct[i].head = closest;  
+          network_struct[closest].cluster_members++;  
 
-        distance_X_new = network_struct[i].xLoc - network_struct[closest].xLoc;  
-        distance_Y_new = network_struct[i].yLoc - network_struct[closest].yLoc;  
-        distance_new = sqrt((pow(distance_X_new, 2) + pow(distance_Y_new, 2)));  
+          distance_X_new = network_struct[i].xLoc - network_struct[closest].xLoc;  
+          distance_Y_new = network_struct[i].yLoc - network_struct[closest].yLoc;  
+          distance_new = sqrt((pow(distance_X_new, 2) + pow(distance_Y_new, 2)));  
 
-        network_struct[i].bCurrent -= computeEnergyTransmit(distance_new, MESSAGE_LENGTH);  
-        network_struct[closest].bCurrent -= computeEnergyReceive(MESSAGE_LENGTH);
+          network_struct[i].bCurrent -= computeEnergyTransmit(distance_new, MESSAGE_LENGTH, (MOD_SIMULATION==type));  
+          network_struct[closest].bCurrent -= computeEnergyReceive(MESSAGE_LENGTH);
 
-        msg_count++;
-        ovh_count++;
+          msg_count++;
+          ovh_count++;
+        }
+
       }  
     }  
 
@@ -428,11 +424,11 @@ int runSimulation(const struct sensor network[], int type, int trial){
         // but no simulation of this is neccescary outside of the loss   
         // of battery power for broadcasting the schedule, which is a constant  
     for(i = 0; i <= NUM_NODES; i++){  
-      if(network_struct[i].head == -1){  
+      if(network_struct[i].head == CLUSTER_HEAD){  
                 // if the node is going to be a cluster head, it transmits   
                 // the schedule to the other nodes  
         network_struct[i].bCurrent -=   
-        computeEnergyTransmit(SCHEDULE_DISTANCE, SCHEDULE_MESSAGE);  
+        computeEnergyTransmit(SCHEDULE_DISTANCE, SCHEDULE_MESSAGE, (MOD_SIMULATION==type));  
 
         msg_count++;
         ovh_count++;
@@ -464,29 +460,41 @@ int runSimulation(const struct sensor network[], int type, int trial){
       }
 
 
-      if(network_struct[i].head != -1 && network_struct[i].head != DEAD_NODE && does_transmit){  
+      if(network_struct[i].head != CLUSTER_HEAD && network_struct[i].head != DEAD_NODE && does_transmit){  
         distance_X_new = network_struct[i].xLoc - network_struct[network_struct[i].head].xLoc;  
         distance_Y_new = network_struct[i].yLoc - network_struct[network_struct[i].head].yLoc;  
         distance_new = sqrt((pow(distance_X_new, 2) + pow(distance_Y_new, 2)));  
-        network_struct[i].bCurrent -= computeEnergyTransmit(distance_new, MESSAGE_LENGTH);  
+        network_struct[i].bCurrent -= computeEnergyTransmit(distance_new, MESSAGE_LENGTH, (MOD_SIMULATION==type));  
         network_struct[network_struct[i].head].bCurrent -= computeEnergyReceive(MESSAGE_LENGTH);
 
-        msg_count++;
+        msg_count++; 
+      }
+      else if(network_struct[i].head == CLUSTER_HEAD) {  
+        distance_X_new = network_struct[i].xLoc - BASE_STATION.xLoc;  
+        distance_Y_new = network_struct[i].yLoc - BASE_STATION.yLoc;  
+        distance_new = sqrt((pow(distance_X_new, 2) + pow(distance_Y_new, 2))); 
 
-        if(network_struct[i].bCurrent < 0.0 && network_struct[i].head != -1){  
-          network_struct[i].head = DEAD_NODE;  
-        }  
+        for (int i = network_struct[i].cluster_members; i >= 0; --i) {
+          double req_energy = computeEnergyTransmit(distance_new, MESSAGE_LENGTH*i, FALSE);
+          if (network_struct[i].bCurrent - req_energy >= 0) {
+            network_struct[i].bCurrent -= req_energy;
+            los_count += network_struct[i].cluster_members - i;
+            if (i > 0) {
+              msg_count++;
+            }
+            break;
+          }
+        }
       } 
     }  
 
     // round has completed, increment the round count  
     for(i = 0; i <= NUM_NODES; i++){  
       network_struct[i].cluster_members = 0;  
-      if(network_struct[i].bCurrent > 0.0) network_struct[i].head = 0;  
+      if(network_struct[i].bCurrent <= 0.0) network_struct[i].head = DEAD_NODE;  
     }  
 
     cluster_head_count = 0;  
-
 
     avgEnergy = averageEnergy(network_struct);
     if (round%LOG_STEPS == 0){
@@ -513,7 +521,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
 } 
 
 
-double computeEnergyTransmit(float distance, int messageLength){  
+double computeEnergyTransmit(float distance, int messageLength, int reduced){  
 // Preconditions:   distance contains the distance between the transmitting   
 //                  node and the receiving node. messageLength contains   
 //                  the length of the message in bits.  
@@ -521,6 +529,9 @@ double computeEnergyTransmit(float distance, int messageLength){
 //                  returned  
 
   float E_elec = 50 * pow(10,-9);  
+  if (reduced) {
+    E_elec*=0.1;
+  }
   float epsilon_amp = 100 * pow(10,-12);  
   double EnergyUse = 0.00;  
 
