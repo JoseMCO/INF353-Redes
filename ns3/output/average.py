@@ -54,9 +54,13 @@ files = [f for f in listdir(path) if isfile(join(path, f))]
 files = [f for f in files if f.endswith(".csv")]
 
 leach = [(path+f) for f in files if f.startswith("leach_")]
-sep = [(path+f) for f in files if f.startswith("sep_")]
 teen = [(path+f) for f in files if f.startswith("teen_")]
+mod = [(path+f) for f in files if f.startswith("mod_")]
+adv = [(path+f) for f in files if f.startswith("adv_")]
+tam = [(path+f) for f in files if f.startswith("tam_")]
 
 writecsv(avgcsv(leach), path+"leach.csv")
-writecsv(avgcsv(sep), path+"sep.csv")
 writecsv(avgcsv(teen), path+"teen.csv")
+writecsv(avgcsv(mod), path+"mod.csv")
+writecsv(avgcsv(adv), path+"adv.csv")
+writecsv(avgcsv(tam), path+"tam.csv")

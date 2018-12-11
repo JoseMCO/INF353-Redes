@@ -23,7 +23,7 @@
 using namespace std;
 
 
-int NUM_NODES = 100;     // number of nodes in the network  
+int NUM_NODES = 200;     // number of nodes in the network  
 
 
                         // default is 50  
@@ -104,7 +104,7 @@ double MOD_THRESHOLD = 0.8;
 
 int LOG_STEPS = 20;
 
-struct sensor {  
+struct Sensor {  
   short xLoc;        // X-location of sensor  
   short yLoc;        // Y-location of sensor  
   short lPeriods;    // number of periods the sensor has been in use for  
@@ -120,7 +120,7 @@ struct sensor {
   double temperature;
 };  
 
-struct sensor BASE_STATION;  
+Sensor BASE_STATION;  
 
 double computeEnergyTransmit(float distance, int messageLength, int reduced);  
 // computes the energy needed to transmit the message  
@@ -131,35 +131,23 @@ double computeEnergyReceive(int messageLength);
 // computes the energy needed to receive a message   
 // input is the message length  
 
-void initializeNetwork(struct sensor network[], int networkId);  
+void initializeNetwork(Sensor* network, int networkId);  
 // initializes the network; randomly places nodes within   
 // the grid and sets battery power to default value  
 
-int aliveCount(struct sensor network[]);
+int aliveCount(Sensor network[]);
 
-float averageEnergy(struct sensor network[]);  
-float maxEnergy(struct sensor network[]);  
-float minEnergy(struct sensor network[]);  
-// computes the average power of the sensors in the   
+float averageEnergy(Sensor network[]);  
+float maxEnergy(Sensor network[]);  
+float minEnergy(Sensor network[]);  
+// computes the average/min/max power of the sensors in the   
 // network as a percentage of starting power  
-// input is a sensor network  
+// input is a sensor network   
 
-struct sensor * loadConfiguration(char * filename);  
-// loads values for the network initialization  
-// including starting battery power, size of network,   
-// and number of nodes  
-
-int runSimulation(const struct sensor network[], int type, int trial);  
-
-int sensorTransmissionChoice(const struct sensor a);  
-// using the NPP, this function determines whether sensor a  
-// should transmit in the current round based on the expected  
-// number of rounds the network will be in use and the average   
-// energy the sensor has used per round thus far in the simulation.  
-// Returns 1 if the sensor should transmit, 0 otherwise.   
+int runSimulation(Sensor* network, int type, int trial);    
 
 int main(int argc, char * argv[]) {  
-  struct sensor * network; 
+  Sensor network[NUM_NODES]; 
 
   int i = 0;  
   //int j = 0;  
@@ -169,18 +157,15 @@ int main(int argc, char * argv[]) {
   double total_rounds_ADV = 0.0;  
   double total_rounds_TAM = 0.0;  
   //double average_comparison = 0.0;  
-  char* filename=new char[10]; 
 
   BASE_STATION.xLoc = BASE_STATION_X_DEFAULT;  
   BASE_STATION.yLoc = BASE_STATION_Y_DEFAULT;  
 
-  cout << "proper file" << endl;   
-
-  network = (struct sensor *) malloc(200 * sizeof(struct sensor));
-
-
   for(i = 0; i < TRIALS; i++){  
     initializeNetwork(network, i);  
+    
+    cout << "Running simulations" << endl; 
+    
     int rounds_LEACH = runSimulation(network, LEACH_SIMULATION, i);  
     int rounds_TEEN = runSimulation(network, TEEN_SIMULATION, i);  
     int rounds_MOD = runSimulation(network, MOD_SIMULATION, i);  
@@ -219,9 +204,9 @@ int main(int argc, char * argv[]) {
 } // end main function  
 
 
-int runSimulation(const struct sensor network[], int type, int trial){ 
+int runSimulation(Sensor* network, int type, int trial){ 
 
-  struct sensor * network_struct;      // wireless sensor network to run sim on  
+  Sensor network_struct[NUM_NODES];      // wireless sensor network to run sim on  
 
   int i = 0;              // indexing variables  
   int j = 0;  
@@ -255,7 +240,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
   int los_count = 0;
 
   //old :: network_struct = (struct sensor *) malloc(NUM_NODES * sizeof(struct sensor)); 
-  network_struct = (struct sensor *) malloc(200 * sizeof(struct sensor));  
+  // network_struct = (struct sensor *) malloc(((int)NUM_NODES) * sizeof(struct sensor));  
 
   //network_struct = new struct sensor[NUM_NODES];  
   // copy the contents of the passed network to a temporary   
@@ -357,7 +342,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
       if(network_struct[i].head == CLUSTER_HEAD){  
         network_struct[i].bCurrent -=   
         computeEnergyTransmit(LEACH_AD_DISTANCE,  
-          LEACH_AD_MESSAGE, (MOD_SIMULATION==type));  
+          LEACH_AD_MESSAGE, (type==MOD_SIMULATION || type==TAM_SIMULATION));  
         msg_count++;
         ovh_count++;
       }  
@@ -408,7 +393,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
           distance_Y_new = network_struct[i].yLoc - network_struct[closest].yLoc;  
           distance_new = sqrt((pow(distance_X_new, 2) + pow(distance_Y_new, 2)));  
 
-          network_struct[i].bCurrent -= computeEnergyTransmit(distance_new, MESSAGE_LENGTH, (MOD_SIMULATION==type));  
+          network_struct[i].bCurrent -= computeEnergyTransmit(distance_new, MESSAGE_LENGTH, (type==MOD_SIMULATION || type==TAM_SIMULATION));  
           network_struct[closest].bCurrent -= computeEnergyReceive(MESSAGE_LENGTH);
 
           msg_count++;
@@ -428,7 +413,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
                 // if the node is going to be a cluster head, it transmits   
                 // the schedule to the other nodes  
         network_struct[i].bCurrent -=   
-        computeEnergyTransmit(SCHEDULE_DISTANCE, SCHEDULE_MESSAGE, (MOD_SIMULATION==type));  
+        computeEnergyTransmit(SCHEDULE_DISTANCE, SCHEDULE_MESSAGE, (type==MOD_SIMULATION || type==TAM_SIMULATION));  
 
         msg_count++;
         ovh_count++;
@@ -464,7 +449,7 @@ int runSimulation(const struct sensor network[], int type, int trial){
         distance_X_new = network_struct[i].xLoc - network_struct[network_struct[i].head].xLoc;  
         distance_Y_new = network_struct[i].yLoc - network_struct[network_struct[i].head].yLoc;  
         distance_new = sqrt((pow(distance_X_new, 2) + pow(distance_Y_new, 2)));  
-        network_struct[i].bCurrent -= computeEnergyTransmit(distance_new, MESSAGE_LENGTH, (MOD_SIMULATION==type));  
+        network_struct[i].bCurrent -= computeEnergyTransmit(distance_new, MESSAGE_LENGTH, (type==MOD_SIMULATION || type==TAM_SIMULATION));  
         network_struct[network_struct[i].head].bCurrent -= computeEnergyReceive(MESSAGE_LENGTH);
 
         msg_count++; 
@@ -515,6 +500,8 @@ int runSimulation(const struct sensor network[], int type, int trial){
     j = round;
   } 
 
+  // free(network_struct);
+
   logFile.close();
   
   return round;  
@@ -551,7 +538,7 @@ double computeEnergyReceive(int messageLength) {
 }           // end computeEnergyReceive function  
 
 
-void initializeNetwork(struct sensor network[], int networkId) {  
+void initializeNetwork(Sensor* network, int networkId) {  
 // Preconditions:   network is an unitialized sensor network.  
 // Postconditions:  network is an initialized sensor network   
 //                  whose values are loaded from global varibles   
@@ -562,6 +549,8 @@ void initializeNetwork(struct sensor network[], int networkId) {
   // filename += std::to_string(networkId);
   // filename += ".xml";
   // ns3::AnimationInterface anim (filename); 
+
+  cout << "initializing: " << networkId << endl; 
 
   int i = 0;  
   srand((unsigned int) time(0));  
@@ -588,7 +577,7 @@ void initializeNetwork(struct sensor network[], int networkId) {
 
 }           // end initializeNetwork function  
 
-int aliveCount(struct sensor network[]) {  // ASDVFFFFFFFFFFFFFFFSDFASDFASD
+int aliveCount(Sensor network[]) { 
   int count = -1;
 
   for(int i = 0; i <= NUM_NODES; i++) {  
@@ -600,7 +589,7 @@ int aliveCount(struct sensor network[]) {  // ASDVFFFFFFFFFFFFFFFSDFASDFASD
   return count;
 }
 
-float averageEnergy(struct sensor network[]) {  
+float averageEnergy(Sensor network[]) {  
 // Preconditions:   network is an initialized sensor network  
 // Postconditions:  the average percentage of power in the   
 //                  batteries across the network is returned.  
@@ -622,7 +611,7 @@ float averageEnergy(struct sensor network[]) {
   return current_power/starting_power;  
 }           // end averageEnergy function 
 
-float maxEnergy(struct sensor network[]) { 
+float maxEnergy(Sensor network[]) { 
   float max = 0.0;   
 
   for(int i = 0; i <= NUM_NODES; i++) {  
@@ -635,7 +624,7 @@ float maxEnergy(struct sensor network[]) {
   return (int)(max * 1000.0)/1000.0;  
 }           // end maxEnergy function 
 
-float minEnergy(struct sensor network[]) { 
+float minEnergy(Sensor network[]) { 
   float min = B_POWER_ADVANCED+1;   
 
   for(int i = 0; i <= NUM_NODES; i++) {  
@@ -650,16 +639,3 @@ float minEnergy(struct sensor network[]) {
 
   return (int)(min * 1000.0)/1000.0;  
 }           // end minEnergy function  
-
-int sensorTransmissionChoice(const struct sensor a){  
-// Preconditions:   a is an initialized sensor  
-// Postconditions:  1 is returned if a should transmit for   
-//          the current round, 0 otherwise.  
-  int remaining_periods = 0;  
-
-  remaining_periods = a.ePeriods - a.lPeriods;  
-  if((remaining_periods * a.pAverage) > a.bCurrent)  
-    return 0;  
-  else  
-    return 1;  
-}

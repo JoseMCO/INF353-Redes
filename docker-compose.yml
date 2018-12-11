@@ -9,3 +9,5 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix
     environment:
       - DISPLAY=${HOSTNAME}:0
+    cap_add:
+      - SYS_PTRACE
